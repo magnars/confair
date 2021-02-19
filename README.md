@@ -33,8 +33,8 @@ Create a config file somewhere, for example `./config/local-config.edn`:
  :spotify/client-secret "3abdc"}
 ```
 
-Since we want to check the config into source control, but we don't want to
-check in our client-secret, we'll encrypt it.
+We want to check the prod config into source control, but we don't want to
+check in our client-secret, so we'll encrypt it.
 
 First, create a file with a secret, and make sure we don't check it in:
 
@@ -43,7 +43,7 @@ echo shhh-dont-tell-anyone > secrets/local-config-secret.txt
 echo "secrets/*.txt" >> .gitignore
 ```
 
-Second, we let confair know about the secret with some metadata:
+Second, let confair know about the secret with some metadata:
 
 ```clj
 ^{:config/secrets {:secret/local [:config/file "./secrets/local-config-secret.txt"]}}
@@ -53,7 +53,7 @@ Second, we let confair know about the secret with some metadata:
  :spotify/client-secret "3abdc"}
 ```
 
-(a popular option in prod is to replace `:config/file` with `:config/env` to
+(A popular option in prod is to replace `:config/file` with `:config/env` to
 read from an environment variable instead)
 
 Now that confair knows where to find the secret, it's time to fire up the REPL
@@ -82,8 +82,8 @@ been updated to look like this:
 
 Our client-secret has been encrypted with high-strength AES128, courtesy of
 [Nippy](https://github.com/ptaoussanis/nippy). This file can now be safely
-checked into source control. The local config secret needs to be shared with
-other developers out of band, once.
+checked into source control. The secret needs to be shared with other developers
+out of band.
 
 In order to use this config in our app, we read it back in like this:
 
@@ -95,8 +95,6 @@ In order to use this config in our app, we read it back in like this:
 (:spotify/client-id config) ;; => "my-api-client"
 (:spotify/client-secret config) ;; => "3abdc"
 ```
-
-Note that the secret is decrypted for us.
 
 ### Masking
 
@@ -160,10 +158,6 @@ Add a sample file for new developers for good measure:
 ```
 cp config/local-config.edn config/local-config.edn.sample
 ```
-
-And you are good to go!
-
-### Finally
 
 There's quite a bit more to confair, but this will have to do for now. More docs
 coming later, but feel free to check out the tests for more examples.
