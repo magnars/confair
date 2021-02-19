@@ -15,7 +15,8 @@ secret ones, without coordinating updates with every other developer on the
 team. The dream is easily switching between environments locally, without
 commenting in and out bundles of related config options. The dream is checking
 in the prod config in a single readable EDN-file, instead of passing it
-piecemeal via ENV-vars in Kubernetes secrets.
+piecemeal via ENV-vars in Kubernetes secrets. The dream is not accidentally
+sending all your secrets to Datadog.
 
 Welcome to the dream.
 
