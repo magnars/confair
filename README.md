@@ -163,7 +163,24 @@ cp config/local-config.edn config/local-config.edn.sample
 
 And you are good to go!
 
-### Finally
+## Install
+
+Confair is a stable library - it will never change it's public API in breaking
+way, and will never (intentionally) introduce other breaking changes.
+
+With tools.deps:
+
+```clj
+com.magnars/confair {:mvn/version "2020-02-18"}
+```
+
+With Leiningen:
+
+```clj
+[com.magnars/confair "2020-02-18"]
+```
+
+## Finally
 
 There's quite a bit more to confair, but this will have to do for now. More docs
 coming later, but feel free to check out the tests for more examples.
