@@ -125,7 +125,7 @@ into a string with `(str config)` or `(clojure.pprint/pprint config)` or
 {:spotify/api-token-url "https://accounts.spotify.com/api/token"
  :spotify/api-url "https://api.spotify.com"
  :spotify/client-id "my-api-client"
- :spotify/client-secret [:config/masked-string "3*******"}
+ :spotify/client-secret [:config/masked-string "3*******"]}
 ```
 
 ### Local overrides
@@ -155,6 +155,11 @@ And import the defaults from our `./config/dev-config.edn`:
 
 In this example, the default config options will be imported, but
 `:spotify/api-url` is overridden.
+
+The `:dev-config/` namespace is slightly odd. This is a hint that you shouldn't
+use imports in production. While imports are useful when developing locally, it
+is always a good idea to have the production configuration explicitly defined in
+a single place.
 
 Add a sample file for new developers for good measure:
 
