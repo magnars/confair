@@ -184,3 +184,10 @@ With Leiningen:
 
 There's quite a bit more to confair, but this will have to do for now. More docs
 coming later, but feel free to check out the tests for more examples.
+
+## License
+
+Copyright © 2021 Magnar Sveen
+
+Distributed under the Eclipse Public License either version 1.0 or (at your
+option) any later version.
