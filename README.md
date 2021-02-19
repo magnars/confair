@@ -78,7 +78,7 @@ been updated to look like this:
 {:spotify/api-token-url "https://accounts.spotify.com/api/token"
  :spotify/api-url "https://api.spotify.com"
  :spotify/client-id "my-api-client"
- :spotify/client-secret [:secret/dev "TlBZD.....kc="}
+ :spotify/client-secret [:secret/dev "TlBZD.....kc="]}
 ```
 
 Our client-secret has been encrypted with high-strength AES128, courtesy of
@@ -128,6 +128,9 @@ into a string with `(str config)` or `(clojure.pprint/pprint config)` or
  :spotify/client-secret [:config/masked-string "3*******"]}
 ```
 
+Note that the masked config value is partly revealed to help with verification
+from the logs.
+
 ### Local overrides
 
 Instead of checking in `dev-config.edn`, let's add it to `.gitignore`:
@@ -142,7 +145,7 @@ We'll move the default configuration to a file that we *do* check in, `./config/
 {:spotify/api-token-url "https://accounts.spotify.com/api/token"
  :spotify/api-url "https://api.spotify.com"
  :spotify/client-id "my-api-client"
- :spotify/client-secret "3abdc"}
+ :spotify/client-secret [:secret/dev "TlBZD.....kc="]}
 ```
 
 And import the defaults from our `./config/dev-config.edn`:
