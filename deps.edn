@@ -1,0 +1,13 @@
+{:paths ["src"]
+ :deps {com.taoensso/nippy {:mvn/version "3.1.1"}
+        rewrite-clj/rewrite-clj {:mvn/version "0.6.1"}}
+ :aliases {:dev {:extra-paths ["test"]
+                 :extra-deps {org.clojure/clojure {:mvn/version "1.10.1"}
+                              org.clojure/test.check {:mvn/version "0.10.0-alpha4"}
+                              lambdaisland/kaocha {:mvn/version "1.0.700"}
+                              kaocha-noyoda/kaocha-noyoda {:mvn/version "2019-06-03"}
+                              com.magnars/test-with-files {:mvn/version "2021-02-17"}}}
+           :test {:main-opts ["-m" "kaocha.runner"]}
+           :jar {:extra-deps {pack/pack.alpha {:git/url "https://github.com/juxt/pack.alpha.git"
+                                               :sha "e518d9b2b70f4292c9988d2792b8667d88a6f4df"}}
+                 :main-opts ["-m" "mach.pack.alpha.skinny" "--no-libs" "--project-path" "confair.jar"]}}}
