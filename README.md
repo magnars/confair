@@ -82,8 +82,8 @@ been updated to look like this:
 
 Our client-secret has been encrypted with high-strength AES128, courtesy of
 [Nippy](https://github.com/ptaoussanis/nippy). This file can now be safely
-checked into source control. The secret needs to be shared with other developers
-out of band.
+checked into source control. The local config secret needs to be shared with
+other developers out of band, but only once.
 
 In order to use this config in our app, we read it back in like this:
 
@@ -95,6 +95,8 @@ In order to use this config in our app, we read it back in like this:
 (:spotify/client-id config) ;; => "my-api-client"
 (:spotify/client-secret config) ;; => "3abdc"
 ```
+
+Note that the secret is decrypted for us.
 
 ### Masking
 
@@ -158,6 +160,10 @@ Add a sample file for new developers for good measure:
 ```
 cp config/local-config.edn config/local-config.edn.sample
 ```
+
+And you are good to go!
+
+### Finally
 
 There's quite a bit more to confair, but this will have to do for now. More docs
 coming later, but feel free to check out the tests for more examples.
