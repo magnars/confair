@@ -25,7 +25,7 @@ Welcome to the dream.
 Okay, that last part might have been too much. I was channeling the spirit of
 Nicolas Cage. Anyway, let's take a quick look at how it works.
 
-Create a config file somewhere, for example `./config/local-config.edn`:
+Create a config file somewhere, for example `./config/dev-config.edn`:
 
 ```clj
 {:spotify/api-token-url "https://accounts.spotify.com/api/token"
@@ -34,20 +34,20 @@ Create a config file somewhere, for example `./config/local-config.edn`:
  :spotify/client-secret "3abdc"}
 ```
 
-We want to check the prod config into source control, but we don't want to
-check in our client-secret, so we'll encrypt it.
+We want to check the dev config into source control, but we don't want to check
+in our client-secret, so we'll encrypt it.
 
 First, create a file with a secret, and make sure we don't check it in:
 
 ```sh
-echo shhh-dont-tell-anyone > secrets/local-config-secret.txt
+echo shhh-dont-tell-anyone > secrets/dev-config-secret.txt
 echo "secrets/*.txt" >> .gitignore
 ```
 
 Second, let confair know about the secret with some metadata:
 
 ```clj
-^{:config/secrets {:secret/local [:config/file "./secrets/local-config-secret.txt"]}}
+^{:config/secrets {:secret/dev [:config/file "./secrets/dev-config-secret.txt"]}}
 {:spotify/api-token-url "https://accounts.spotify.com/api/token"
  :spotify/api-url "https://api.spotify.com"
  :spotify/client-id "my-api-client"
@@ -64,26 +64,26 @@ to encrypt the client-secret.
 (require '[confair.client :as config])
 (require '[confair.client-admin :as ca])
 
-(ca/conceal-value (config/from-file "./config/local-config.edn")
-                  :secret/local
+(ca/conceal-value (config/from-file "./config/dev-config.edn")
+                  :secret/dev
                   :spotify/client-secret)
 ```
 
 This loads the configuration (including the metadata we need), and uses the
-`:secret/local` secret to encrypt `:spotify/client-secret`. Our file has now
+`:secret/dev` secret to encrypt `:spotify/client-secret`. Our file has now
 been updated to look like this:
 
 ```clj
-^{:config/secrets {:secret/local [:config/file "./secrets/local-config-secret.txt"]}}
+^{:config/secrets {:secret/dev [:config/file "./secrets/dev-config-secret.txt"]}}
 {:spotify/api-token-url "https://accounts.spotify.com/api/token"
  :spotify/api-url "https://api.spotify.com"
  :spotify/client-id "my-api-client"
- :spotify/client-secret [:secret/local "TlBZD.....kc="}
+ :spotify/client-secret [:secret/dev "TlBZD.....kc="}
 ```
 
 Our client-secret has been encrypted with high-strength AES128, courtesy of
 [Nippy](https://github.com/ptaoussanis/nippy). This file can now be safely
-checked into source control. The local config secret needs to be shared with
+checked into source control. The dev config secret needs to be shared with
 other developers out of band, but only once.
 
 In order to use this config in our app, we read it back in like this:
@@ -91,7 +91,7 @@ In order to use this config in our app, we read it back in like this:
 ```clj
 (require '[confair.client :as config])
 
-(def config (config/from-file "./config/local-config.edn"))
+(def config (config/from-file "./config/dev-config.edn"))
 
 (:spotify/client-id config) ;; => "my-api-client"
 (:spotify/client-secret config) ;; => "3abdc"
@@ -110,7 +110,7 @@ In either case, you wouldn't want your secrets to be sent verbatim over the net.
 Let's mask the config secrets:
 
 ```clj
-(def config (-> (config/from-file "./config/local-config.edn")
+(def config (-> (config/from-file "./config/dev-config.edn")
                 (config/mask-config)))
 
 (:spotify/client-id config) ;; => "my-api-client"
@@ -130,10 +130,10 @@ into a string with `(str config)` or `(clojure.pprint/pprint config)` or
 
 ### Local overrides
 
-Instead of checking in `local-config.edn`, let's add it to `.gitignore`:
+Instead of checking in `dev-config.edn`, let's add it to `.gitignore`:
 
 ```sh
-echo "config/local-config.edn" >> .gitignore
+echo "config/dev-config.edn" >> .gitignore
 ```
 
 We'll move the default configuration to a file that we *do* check in, `./config/default-config.edn`:
@@ -145,10 +145,10 @@ We'll move the default configuration to a file that we *do* check in, `./config/
  :spotify/client-secret "3abdc"}
 ```
 
-And import the defaults from our `./config/local-config.edn`:
+And import the defaults from our `./config/dev-config.edn`:
 
 ```clj
-^{:config/secrets {:secret/local [:config/file "./secrets/local-config-secret.txt"]}
+^{:config/secrets {:secret/dev [:config/file "./secrets/dev-config-secret.txt"]}
   :dev-config/import [".config/default-config.edn"]}
 {:spotify/api-url "https://api-test.spotify.com"}
 ```
@@ -159,7 +159,7 @@ In this example, the default config options will be imported, but
 Add a sample file for new developers for good measure:
 
 ```
-cp config/local-config.edn config/local-config.edn.sample
+cp config/dev-config.edn config/dev-config.edn.sample
 ```
 
 And you are good to go!
