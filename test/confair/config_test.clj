@@ -145,3 +145,41 @@
 
     (is (= (with-out-str (clojure.pprint/pprint (assoc masked :something-else "pretty long"))) ;; needs to be longer to trigger multiline map
            "{:encrypted [:config/masked-string \"th*****a\"],\n :plain-text \"hi\",\n :something-else \"pretty long\"}\n\n"))))
+
+(def required-together ;; all or nothing
+  #{[:spotify/api-token-url
+     :spotify/api-url
+     :spotify/client-id
+     :spotify/client-secret]
+    [:datadog/host
+     :datadog/port]})
+
+(deftest verify-required-together-test
+  (is (= (sut/verify-required-together {:foo "bar"} required-together)
+         {:foo "bar"}))
+
+  (let [config {:spotify/api-token-url "https://accounts.spotify.com/api/token"
+                :spotify/api-url "https://api.spotify.com"
+                :spotify/client-id "my-api-client"
+                :spotify/client-secret "3abdc"}]
+    (is (= (sut/verify-required-together config required-together)
+           config)))
+
+  (let [e (try (sut/verify-required-together {:spotify/api-url "..."} required-together)
+               (catch Exception e e))]
+    (is (instance? java.lang.Exception e))
+    (is (= (.getMessage e) "Config keys [:spotify/api-token-url :spotify/api-url :spotify/client-id :spotify/client-secret] are required together, found only #{:spotify/api-url}."))
+    (is (= (ex-data e) {:present #{:spotify/api-url}
+                        :missing #{:spotify/api-token-url :spotify/client-id :spotify/client-secret}}))))
+
+(def dependent-required-keys
+  {{:order-backend #{:vite-crm}} #{:vite-crm/url
+                                   :vite-crm/subscription-key}
+   {:order-backend #{:cactus}} #{:cactus/agent-id
+                                 :cactus/order-token
+                                 :cactus/order-url}
+   {:order-backend #{:mdb-sale}} #{:mdb-sale/api-key
+                                   :mdb-sale/order-url}
+   {:sms-provider #{:twilio}} #{:twilio/account-id
+                                :twilio/secret}})
+

@@ -1,6 +1,7 @@
 (ns confair.config
   (:require [clojure.java.io :as io]
             [clojure.pprint :refer [pprint]]
+            [clojure.set :as set]
             [clojure.string :as str]
             [confair.edn-loader :as edn-loader]
             [taoensso.nippy :as nippy])
@@ -167,3 +168,14 @@
 
 (defn from-base64-env [env-var & [secrets-override]]
   (from-base64-string (get-env env-var) [:env env-var] secrets-override))
+
+;; verify
+
+(defn verify-required-together [config key-bundles]
+  (doseq [bundle key-bundles]
+    (let [present (set/intersection (set (keys config)) (set bundle))
+          missing (set/difference (set bundle) present)]
+      (when (and (seq present) (seq missing))
+        (throw (ex-info (str "Config keys " bundle " are required together, found only " present ".")
+                        {:missing missing :present present})))))
+  config)
