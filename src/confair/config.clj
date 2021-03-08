@@ -179,3 +179,14 @@
         (throw (ex-info (str "Config keys " bundle " are required together, found only " present ".")
                         {:missing missing :present present})))))
   config)
+
+(defn verify-dependent-required-keys [config kv-spec->required-keys]
+  (doseq [[kv-spec required-keys] kv-spec->required-keys]
+    (when (every? (fn [[k f]] (f (get config k))) kv-spec)
+      (let [present (set/intersection (set (keys config)) (set required-keys))
+            missing (set/difference (set required-keys) present)]
+        (when (seq missing)
+          (let [match (select-keys config (keys kv-spec))]
+            (throw (ex-info (str "Missing config keys " missing " are required due to " match ".")
+                            {:reason match :missing missing :present present})))))))
+  config)
