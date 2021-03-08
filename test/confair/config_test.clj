@@ -172,7 +172,7 @@
     (is (= (ex-data e) {:present #{:spotify/api-url}
                         :missing #{:spotify/api-token-url :spotify/client-id :spotify/client-secret}}))))
 
-(def dependent-required-keys
+(def dependent-keys
   {{:sms-provider #{:twilio}} #{:twilio/account-id
                                 :twilio/secret}
    {:sms-provider #{:link-mobility}
@@ -180,17 +180,17 @@
                         :link-mobility/username
                         :link-mobility/password}})
 
-(deftest verify-dependent-required-keys
-  (is (= (sut/verify-dependent-required-keys {:foo "bar"} dependent-required-keys)
+(deftest verify-dependent-keys
+  (is (= (sut/verify-dependent-keys {:foo "bar"} dependent-keys)
          {:foo "bar"}))
 
   (let [config {:sms-provider :twilio
                 :twilio/account-id "123"
                 :twilio/secret "456"}]
-    (is (= (sut/verify-dependent-required-keys config dependent-required-keys)
+    (is (= (sut/verify-dependent-keys config dependent-keys)
            config)))
 
-  (let [e (try (sut/verify-dependent-required-keys {:sms-provider :twilio} dependent-required-keys)
+  (let [e (try (sut/verify-dependent-keys {:sms-provider :twilio} dependent-keys)
                (catch Exception e e))]
     (is (= (type e) clojure.lang.ExceptionInfo))
     (is (= (.getMessage e) "Missing config keys #{:twilio/account-id :twilio/secret} are required due to {:sms-provider :twilio}."))
@@ -200,14 +200,14 @@
 
   (let [config {:sms-provider :link-mobility
                 :send-sms? false}]
-    (is (= (sut/verify-dependent-required-keys config dependent-required-keys)
+    (is (= (sut/verify-dependent-keys config dependent-keys)
            config)))
 
-  (let [e (try (sut/verify-dependent-required-keys {:sms-provider :link-mobility
-                                                    :send-sms? true
-                                                    :link-mobility/username "foo"
-                                                    :link-mobility/password "bar"}
-                                                   dependent-required-keys)
+  (let [e (try (sut/verify-dependent-keys {:sms-provider :link-mobility
+                                           :send-sms? true
+                                           :link-mobility/username "foo"
+                                           :link-mobility/password "bar"}
+                                          dependent-keys)
                (catch Exception e e))]
     (is (= (type e) clojure.lang.ExceptionInfo))
     (is (= (.getMessage e) "Missing config keys #{:link-mobility/url} are required due to {:sms-provider :link-mobility, :send-sms? true}."))

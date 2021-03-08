@@ -180,7 +180,7 @@
                         {:missing missing :present present})))))
   config)
 
-(defn verify-dependent-required-keys [config kv-spec->required-keys]
+(defn verify-dependent-keys [config kv-spec->required-keys]
   (doseq [[kv-spec required-keys] kv-spec->required-keys]
     (when (every? (fn [[k f]] (f (get config k))) kv-spec)
       (let [present (set/intersection (set (keys config)) (set required-keys))
