@@ -78,7 +78,7 @@
   `(mapcat identity (for ~@body)))
 
 (defn replace-secret [{:keys [files secret-key old-secret new-secret]}]
-  (let [new-secret (config/resolve-secret ::new-secret new-secret)
+  (let [new-secret (config/resolve-reference ::new-secret new-secret)
         configs (for [file files]
                   (try
                     (config/from-file file {secret-key old-secret})

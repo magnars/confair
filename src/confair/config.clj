@@ -45,33 +45,31 @@
 (defn get-env [k]
   (System/getenv k))
 
-(defn resolve-secret [k secret]
-  (str/trim
-   (cond
-     (string? secret)
-     secret
+(defn resolve-reference [k v]
+  (cond
+    (and (vector? v) (= :config/file (first v)))
+    (let [f (io/file (second v))]
+      (if (.exists f)
+        (if (.isFile f)
+          (str/trim (slurp f))
+          (throw (ex-info (str "Expected file, got directory " (second v) " for " k)
+                          {k v})))
+        (throw (ex-info (str "Unknown file " (second v) " for " k)
+                        {k v}))))
 
-     (and (vector? secret) (= :config/file (first secret)))
-     (let [f (io/file (second secret))]
-       (if (.exists f)
-         (if (.isFile f)
-           (slurp f)
-           (throw (ex-info (str "Expected file, got directory " (second secret) " for " k)
-                           {k secret})))
-         (throw (ex-info (str "Unknown file " (second secret) " for " k)
-                         {k secret}))))
+    (and (vector? v) (= :config/env (first v)))
+    (or (get-env (second v))
+        (throw (ex-info (str "Unknown env variable " (second v) " for " k)
+                        {k v})))
 
-     (and (vector? secret) (= :config/env (first secret)))
-     (or (get-env (second secret))
-         (throw (ex-info (str "Unknown env variable " (second secret) " for " k)
-                         {k secret})))
+    :else v))
 
-     :else (throw (ex-info (str "Unknown secret type for " k) {k secret})))))
-
-(defn resolve-secrets [secrets]
-  (into {}
-        (for [[k secret] secrets]
-          [k (resolve-secret k secret)])))
+(defn resolve-references [m]
+  (with-meta
+    (into {}
+          (for [[k v] m]
+            [k (resolve-reference k v)]))
+    (meta m)))
 
 (defn- mask-str [s extra]
   (str
@@ -146,18 +144,22 @@
         config (merge-config (concat (for [f (:dev-config/import (meta raw-config))]
                                        {:file f :config (edn-loader/load-one f)})
                                      [{:file path :config (vary-meta raw-config dissoc :dev-config/import)}]))
-        secrets (resolve-secrets (or secrets-override
-                                     (:config/secrets (meta raw-config))))]
-    (vary-meta (reveal config secrets)
+        secrets (resolve-references (or secrets-override
+                                        (:config/secrets (meta raw-config))))]
+    (vary-meta (-> config
+                   (resolve-references)
+                   (reveal secrets))
                assoc
                :config/secrets secrets
                :config/from-file path)))
 
 (defn from-string [s source & [secrets-override]]
   (let [config (edn-loader/load-one-str s source)
-        secrets (resolve-secrets (or secrets-override
-                                     (:config/secrets (meta config))))]
-    (vary-meta (reveal config secrets)
+        secrets (resolve-references (or secrets-override
+                                        (:config/secrets (meta config))))]
+    (vary-meta (-> config
+                   (resolve-references)
+                   (reveal secrets))
                dissoc :config/secrets)))
 
 (defn from-base64-string [s source & [secrets-override]]

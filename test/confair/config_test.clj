@@ -32,18 +32,18 @@
              meta :config/encrypted-keys)
          {:encrypted :secret/test})))
 
-(deftest resolve-secrets
-  (is (= (sut/resolve-secrets
+(deftest resolve-references
+  (is (= (sut/resolve-references
           {:secret/test "yaaah"})
          {:secret/test "yaaah"}))
 
   (with-files tmp-dir ["foo.txt" "booyah"]
-    (is (= (sut/resolve-secrets
+    (is (= (sut/resolve-references
             {:secret/test [:config/file (str tmp-dir "/foo.txt")]})
            {:secret/test "booyah"})))
 
   (with-redefs [sut/get-env #(when (= "MYENV" %) "fools and kings")]
-    (is (= (sut/resolve-secrets
+    (is (= (sut/resolve-references
             {:secret/test [:config/env "MYENV"]})
            {:secret/test "fools and kings"}))))
 
@@ -75,12 +75,15 @@
 (deftest from-env-test
   (with-redefs [sut/get-env #(case %
                                "MYPASS" "cancan"
+                               "MYIP" "127.0.0.1"
                                "MYCONF" (str
                                          "^" {:config/secrets {:secret/prod [:config/env "MYPASS"]}}
                                          {:plain-text "base"
+                                          :my-ip [:config/env "MYIP"]
                                           :encrypted [:secret/prod (sut/encrypt "this is sparta" "cancan")]}))]
     (is (= (sut/from-env "MYCONF")
            {:plain-text "base"
+            :my-ip "127.0.0.1"
             :encrypted "this is sparta"}))))
 
 (deftest mask-secrets-test
