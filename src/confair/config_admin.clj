@@ -42,8 +42,10 @@
         [:key-already-encrypted key]
         (if-let [secret (secrets secret-key)]
           (if-let [source (key-sources key)]
-            (do (replace-map-value-in-edn-file source key (vector secret-key (config/encrypt (get config key) secret)))
-                [:concealed key :in source])
+            (if (config/reference? source)
+              [:skipping key :defined-in source]
+              (do (replace-map-value-in-edn-file source key (vector secret-key (config/encrypt (get config key) secret)))
+                  [:concealed key :in source]))
             [:no-source-found-for key])
           [:no-secret-found-for secret-key])))))
 

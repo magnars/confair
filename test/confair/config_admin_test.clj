@@ -23,6 +23,11 @@
 
       (is (re-find #":api-key \[:secret/test " (slurp config-path)))
 
+      (is (= (sut/conceal-value (config/from-file config-path)
+                                :secret/test
+                                :api-key)
+             [:key-already-encrypted :api-key]))
+
       ;; reveal
 
       (is (= (sut/reveal-value (config/from-file config-path)
@@ -33,7 +38,27 @@
         (is (= (:api-key config) "foobar"))
         (is (= (:config/encrypted-keys (meta config)) {})))
 
-      (is (re-find #":api-key \"foobar\"" (slurp config-path))))))
+      (is (re-find #":api-key \"foobar\"" (slurp config-path)))
+
+      (is (= (sut/reveal-value (config/from-file config-path)
+                               :api-key)
+             [:key-isnt-encrypted :api-key])))))
+
+(deftest dont-conceal-references-test
+  (with-files [["/stuff.txt" "content"]
+               ["/config.edn" (str
+                               "^" {:config/secrets {:secret/test "mypass"}}
+                               {:api-key "foobar"
+                                :stuff [:config/file (str tmp-dir "/stuff.txt")]})]]
+    (let [config-path (str tmp-dir "/config.edn")]
+      (is (= (sut/conceal-value (config/from-file config-path)
+                                :secret/test
+                                :stuff)
+             [:skipping :stuff :defined-in [:config/file (str tmp-dir "/stuff.txt")]]))
+
+      (is (= (sut/reveal-value (config/from-file config-path)
+                               :stuff)
+             [:key-isnt-encrypted :stuff])))))
 
 (deftest replace-secret-test
   (with-files [["/foo.edn" (str {:api-key "ghosts"})]

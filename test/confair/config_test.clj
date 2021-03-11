@@ -57,15 +57,19 @@
                        "base.edn" (str
                                    {:plain-text "base"
                                     :encrypted [:secret/test (sut/encrypt "this is sparta" "cancan")]})
+                       "something.txt" "booyah"
                        "overrides.edn" (str
-                                        {:plain-text "override"})]
+                                        {:plain-text "override"
+                                         :straight-from-disk [:config/file (str tmp-dir "/something.txt")]})]
     (is (= (sut/from-file (str tmp-dir "/main.edn"))
            {:plain-text "override"
+            :straight-from-disk "booyah"
             :encrypted "this is sparta"
             :main? true}))
 
     (is (= (meta (sut/from-file (str tmp-dir "/main.edn")))
            {:config/key-sources {:plain-text (str tmp-dir "/overrides.edn")
+                                 :straight-from-disk [:config/file (str tmp-dir "/something.txt")]
                                  :encrypted (str tmp-dir "/base.edn")
                                  :main? (str tmp-dir "/main.edn")}
             :config/encrypted-keys {:encrypted :secret/test}

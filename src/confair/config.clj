@@ -7,6 +7,10 @@
             [taoensso.nippy :as nippy])
   (:import java.util.Base64))
 
+(defn reference? [v]
+  (and (vector? v)
+       (#{:config/file :config/env} (first v))))
+
 (defn merge-config [sources]
   (when-let [s (seq (filter #(:dev-config/import (meta (:config %))) sources))]
     (throw (ex-info "Recursively importing config is not supported, because it is not recommended."
@@ -16,10 +20,13 @@
       config
       (assoc (meta config) :config/key-sources
              (into {} (for [k (keys config)]
-                        [k (->> sources
-                                (filter #(contains? (:config %) k))
-                                last
-                                :file)]))))))
+                        (let [source (->> sources
+                                          (filter #(contains? (:config %) k))
+                                          last)
+                              v (get-in source [:config k])]
+                          [k (if (reference? v)
+                               v ;; value is read from file/env, :file isn't true source
+                               (:file source))])))))))
 
 (defn encrypt [form password]
   (nippy/freeze-to-string form {:password [:cached password]}))
