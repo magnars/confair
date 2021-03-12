@@ -44,7 +44,7 @@
                                :api-key)
              [:key-isnt-encrypted :api-key])))))
 
-(deftest dont-conceal-references-test
+(deftest dont-conceal-refs-test
   (with-files [["/stuff.txt" "content"]
                ["/config.edn" (str
                                "^" {:config/secrets {:secret/test "mypass"}}
@@ -65,12 +65,12 @@
                ["/bar.edn" (str {:password "goblins"})]
                ["/baz.edn" (str {:theme "ghouls"})]]
     (is (= (sut/conceal-value (config/from-file (str tmp-dir "/foo.edn")
-                                                {:secret/test "boom"})
+                                                {:secrets {:secret/test "boom"}})
                               :secret/test
                               :api-key)
            [:concealed :api-key :in (str tmp-dir "/foo.edn")]))
     (is (= (sut/conceal-value (config/from-file (str tmp-dir "/bar.edn")
-                                                {:secret/test "boom"})
+                                                {:secrets {:secret/test "boom"}})
                               :secret/test
                               :password)
            [:concealed :password :in (str tmp-dir "/bar.edn")]))

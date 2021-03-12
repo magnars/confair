@@ -7,7 +7,7 @@
             [taoensso.nippy :as nippy])
   (:import java.util.Base64))
 
-(defn reference? [v]
+(defn ref? [v]
   (and (vector? v)
        (#{:config/file :config/env} (first v))))
 
@@ -24,7 +24,7 @@
                                           (filter #(contains? (:config %) k))
                                           last)
                               v (get-in source [:config k])]
-                          [k (if (reference? v)
+                          [k (if (ref? v)
                                v ;; value is read from file/env, :file isn't true source
                                (:file source))])))))))
 
@@ -52,30 +52,32 @@
 (defn get-env [k]
   (System/getenv k))
 
-(defn resolve-reference [k v]
-  (cond
-    (and (vector? v) (= :config/file (first v)))
-    (let [f (io/file (second v))]
-      (if (.exists f)
-        (if (.isFile f)
-          (str/trim (slurp f))
-          (throw (ex-info (str "Expected file, got directory " (second v) " for " k)
-                          {k v})))
-        (throw (ex-info (str "Unknown file " (second v) " for " k)
-                        {k v}))))
+(defn resolve-ref [k v overrides]
+  (or (get overrides v)
+      (if-not (ref? v)
+        v
+        (let [[source path] v]
+          (cond
+            (= :config/file source)
+            (let [f (io/file path)]
+              (if (.exists f)
+                (if (.isFile f)
+                  (str/trim (slurp f))
+                  (throw (ex-info (str "Expected file, got directory " path " for " k)
+                                  {k v})))
+                (throw (ex-info (str "Unknown file " path " for " k)
+                                {k v}))))
 
-    (and (vector? v) (= :config/env (first v)))
-    (or (get-env (second v))
-        (throw (ex-info (str "Unknown env variable " (second v) " for " k)
-                        {k v})))
+            (= :config/env source)
+            (or (get-env path)
+                (throw (ex-info (str "Unknown env variable " path " for " k)
+                                {k v}))))))))
 
-    :else v))
-
-(defn resolve-references [m]
+(defn resolve-refs [m overrides]
   (with-meta
     (into {}
           (for [[k v] m]
-            [k (resolve-reference k v)]))
+            [k (resolve-ref k v overrides)]))
     (meta m)))
 
 (defn- mask-str [s extra]
@@ -146,37 +148,39 @@
 (defn mask-config [config]
   (MaskedConfig. config))
 
-(defn from-file [path & [secrets-override]]
+(defn from-file [path & [overrides]]
   (let [raw-config (edn-loader/load-one path)
         config (merge-config (concat (for [f (:dev-config/import (meta raw-config))]
                                        {:file f :config (edn-loader/load-one f)})
                                      [{:file path :config (vary-meta raw-config dissoc :dev-config/import)}]))
-        secrets (resolve-references (or secrets-override
-                                        (:config/secrets (meta raw-config))))]
+        secrets (resolve-refs (or (:secrets overrides)
+                                  (:config/secrets (meta raw-config)))
+                              (:refs overrides))]
     (vary-meta (-> config
-                   (resolve-references)
+                   (resolve-refs (:refs overrides))
                    (reveal secrets))
                assoc
                :config/secrets secrets
                :config/from-file path)))
 
-(defn from-string [s source & [secrets-override]]
+(defn from-string [s source & [overrides]]
   (let [config (edn-loader/load-one-str s source)
-        secrets (resolve-references (or secrets-override
-                                        (:config/secrets (meta config))))]
+        secrets (resolve-refs (or (:secrets overrides)
+                                  (:config/secrets (meta config)))
+                              (:refs overrides))]
     (vary-meta (-> config
-                   (resolve-references)
+                   (resolve-refs (:refs overrides))
                    (reveal secrets))
                dissoc :config/secrets)))
 
-(defn from-base64-string [s source & [secrets-override]]
-  (from-string (String. (.decode (Base64/getDecoder) s)) [:base64-string source] secrets-override))
+(defn from-base64-string [s source & [overrides]]
+  (from-string (String. (.decode (Base64/getDecoder) s)) [:base64-string source] overrides))
 
-(defn from-env [env-var & [secrets-override]]
-  (from-string (get-env env-var) [:env env-var] secrets-override))
+(defn from-env [env-var & [overrides]]
+  (from-string (get-env env-var) [:env env-var] overrides))
 
-(defn from-base64-env [env-var & [secrets-override]]
-  (from-base64-string (get-env env-var) [:env env-var] secrets-override))
+(defn from-base64-env [env-var & [overrides]]
+  (from-base64-string (get-env env-var) [:env env-var] overrides))
 
 ;; verify
 

@@ -32,20 +32,28 @@
              meta :config/encrypted-keys)
          {:encrypted :secret/test})))
 
-(deftest resolve-references
-  (is (= (sut/resolve-references
-          {:secret/test "yaaah"})
+(deftest resolve-refs
+  (is (= (sut/resolve-refs
+          {:secret/test "yaaah"}
+          nil)
          {:secret/test "yaaah"}))
 
   (with-files tmp-dir ["foo.txt" "booyah"]
-    (is (= (sut/resolve-references
-            {:secret/test [:config/file (str tmp-dir "/foo.txt")]})
+    (is (= (sut/resolve-refs
+            {:secret/test [:config/file (str tmp-dir "/foo.txt")]}
+            nil)
            {:secret/test "booyah"})))
 
   (with-redefs [sut/get-env #(when (= "MYENV" %) "fools and kings")]
-    (is (= (sut/resolve-references
-            {:secret/test [:config/env "MYENV"]})
-           {:secret/test "fools and kings"}))))
+    (is (= (sut/resolve-refs
+            {:secret/test [:config/env "MYENV"]}
+            nil)
+           {:secret/test "fools and kings"})))
+
+  (is (= (sut/resolve-refs
+          {:secret/test [:config/env "MYENV"]}
+          {[:config/env "MYENV"] "fake fools and kings"})
+         {:secret/test "fake fools and kings"})))
 
 (deftest from-file-integration-test
   (with-files tmp-dir ["password.txt" "cancan\n"
@@ -53,7 +61,8 @@
                                    "^" {:config/secrets {:secret/test [:config/file (str tmp-dir "/password.txt")]}
                                         :dev-config/import [(str tmp-dir "/base.edn")
                                                             (str tmp-dir "/overrides.edn")]}
-                                   {:main? true})
+                                   {:main? true
+                                    :my-ip [:config/env "MY_IP"]})
                        "base.edn" (str
                                    {:plain-text "base"
                                     :encrypted [:secret/test (sut/encrypt "this is sparta" "cancan")]})
@@ -61,15 +70,19 @@
                        "overrides.edn" (str
                                         {:plain-text "override"
                                          :straight-from-disk [:config/file (str tmp-dir "/something.txt")]})]
-    (is (= (sut/from-file (str tmp-dir "/main.edn"))
+    (is (= (sut/from-file (str tmp-dir "/main.edn")
+                          {:refs {[:config/env "MY_IP"] "1.2.3.5"}})
            {:plain-text "override"
             :straight-from-disk "booyah"
             :encrypted "this is sparta"
-            :main? true}))
+            :main? true
+            :my-ip "1.2.3.5"}))
 
-    (is (= (meta (sut/from-file (str tmp-dir "/main.edn")))
+    (is (= (meta (sut/from-file (str tmp-dir "/main.edn")
+                                {:refs {[:config/env "MY_IP"] "1.2.3.5"}}))
            {:config/key-sources {:plain-text (str tmp-dir "/overrides.edn")
                                  :straight-from-disk [:config/file (str tmp-dir "/something.txt")]
+                                 :my-ip [:config/env "MY_IP"]
                                  :encrypted (str tmp-dir "/base.edn")
                                  :main? (str tmp-dir "/main.edn")}
             :config/encrypted-keys {:encrypted :secret/test}

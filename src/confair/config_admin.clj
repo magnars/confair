@@ -42,7 +42,7 @@
         [:key-already-encrypted key]
         (if-let [secret (secrets secret-key)]
           (if-let [source (key-sources key)]
-            (if (config/reference? source)
+            (if (config/ref? source)
               [:skipping key :defined-in source]
               (do (replace-map-value-in-edn-file source key (vector secret-key (config/encrypt (get config key) secret)))
                   [:concealed key :in source]))
@@ -79,11 +79,11 @@
   [& body]
   `(mapcat identity (for ~@body)))
 
-(defn replace-secret [{:keys [files secret-key old-secret new-secret]}]
-  (let [new-secret (config/resolve-reference ::new-secret new-secret)
+(defn replace-secret [{:keys [files secret-key old-secret new-secret]} & [overrides]]
+  (let [new-secret (config/resolve-ref ::new-secret new-secret nil)
         configs (for [file files]
                   (try
-                    (config/from-file file {secret-key old-secret})
+                    (config/from-file file (assoc-in overrides [:secrets secret-key] old-secret))
                     (catch Exception e [:exception-while-loading-config file (.getMessage e)])))]
     (if-let [exceptions (seq (filter vector? configs))]
       exceptions
