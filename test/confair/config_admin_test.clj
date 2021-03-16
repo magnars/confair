@@ -2,12 +2,12 @@
   (:require [clojure.test :refer [deftest is testing]]
             [confair.config-admin :as sut]
             [confair.config :as config]
-            [test-with-files.core :refer [tmp-dir with-files]]))
+            [test-with-files.tools :refer [with-files]]))
 
 (deftest conceal-reveal-test
-  (with-files [["/config.edn" (str
-                               "^" {:config/secrets {:secret/test "mypass"}}
-                               {:api-key "foobar"})]]
+  (with-files tmp-dir ["config.edn" (str
+                                     "^" {:config/secrets {:secret/test "mypass"}}
+                                     {:api-key "foobar"})]
     (let [config-path (str tmp-dir "/config.edn")]
 
       ;; conceal
@@ -45,11 +45,11 @@
              [:key-isnt-encrypted :api-key])))))
 
 (deftest dont-conceal-refs-test
-  (with-files [["/stuff.txt" "content"]
-               ["/config.edn" (str
-                               "^" {:config/secrets {:secret/test "mypass"}}
-                               {:api-key "foobar"
-                                :stuff [:config/file (str tmp-dir "/stuff.txt")]})]]
+  (with-files tmp-dir ["stuff.txt" "content"
+                       "config.edn" (str
+                                     "^" {:config/secrets {:secret/test "mypass"}}
+                                     {:api-key "foobar"
+                                      :stuff [:config/file (str tmp-dir "/stuff.txt")]})]
     (let [config-path (str tmp-dir "/config.edn")]
       (is (= (sut/conceal-value (config/from-file config-path)
                                 :secret/test
@@ -61,9 +61,9 @@
              [:key-isnt-encrypted :stuff])))))
 
 (deftest replace-secret-test
-  (with-files [["/foo.edn" (str {:api-key "ghosts"})]
-               ["/bar.edn" (str {:password "goblins"})]
-               ["/baz.edn" (str {:theme "ghouls"})]]
+  (with-files tmp-dir ["foo.edn" (str {:api-key "ghosts"})
+                       "bar.edn" (str {:password "goblins"})
+                       "baz.edn" (str {:theme "ghouls"})]
     (is (= (sut/conceal-value (config/from-file (str tmp-dir "/foo.edn")
                                                 {:secrets {:secret/test "boom"}})
                               :secret/test
