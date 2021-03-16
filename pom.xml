@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.magnars</groupId>
   <artifactId>confair</artifactId>
-  <version>2021-03-12</version>
+  <version>2021-03-16</version>
   <name>confair</name>
   <dependencies>
     <dependency>
