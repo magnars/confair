@@ -61,8 +61,8 @@ Now that confair knows where to find the secret, it's time to fire up the REPL
 to encrypt the client-secret.
 
 ```clj
-(require '[confair.client :as config])
-(require '[confair.client-admin :as ca])
+(require '[confair.config :as config])
+(require '[confair.config-admin :as ca])
 
 (ca/conceal-value (config/from-file "./config/dev-config.edn")
                   :secret/dev
@@ -89,7 +89,7 @@ other developers out of band, but only once.
 In order to use this config in our app, we read it back in like this:
 
 ```clj
-(require '[confair.client :as config])
+(require '[confair.config :as config])
 
 (def config (config/from-file "./config/dev-config.edn"))
 
