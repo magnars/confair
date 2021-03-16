@@ -11,8 +11,12 @@
   (and (vector? v)
        (#{:config/file :config/env} (first v))))
 
+(defn get-imports [config]
+  (or (:config/import (meta config))
+      (:dev-config/import (meta config)))) ;; legacy
+
 (defn merge-config [sources]
-  (when-let [s (seq (filter #(:dev-config/import (meta (:config %))) sources))]
+  (when-let [s (seq (filter #(get-imports (:config %)) sources))]
     (throw (ex-info "Recursively importing config is not supported, because it is not recommended."
                     {:sources s})))
   (let [config (apply merge (map :config sources))]
@@ -150,9 +154,9 @@
 
 (defn from-file [path & [overrides]]
   (let [raw-config (edn-loader/load-one path)
-        config (merge-config (concat (for [f (:dev-config/import (meta raw-config))]
+        config (merge-config (concat (for [f (get-imports raw-config)]
                                        {:file f :config (edn-loader/load-one f)})
-                                     [{:file path :config (vary-meta raw-config dissoc :dev-config/import)}]))
+                                     [{:file path :config (vary-meta raw-config dissoc :config/import :dev-config/import)}]))
         secrets (resolve-refs (or (:secrets overrides)
                                   (:config/secrets (meta raw-config)))
                               (:refs overrides))]

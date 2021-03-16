@@ -34,20 +34,20 @@ Create a config file somewhere, for example `./config/dev-config.edn`:
  :spotify/client-secret "3abdc"}
 ```
 
-We want to check the dev config into source control, but we don't want to check
-in our client-secret, so we'll encrypt it.
+We want to check a fully working dev config into source control, but we don't
+want to check in our client-secret for all to see. Let's encrypt it.
 
 First, create a file with a secret, and make sure we don't check it in:
 
 ```sh
-echo shhh-dont-tell-anyone > secrets/dev-config-secret.txt
+echo shhh-dont-tell-anyone > secrets/dev.txt
 echo "secrets/*.txt" >> .gitignore
 ```
 
 Second, let confair know about the secret with some metadata:
 
 ```clj
-^{:config/secrets {:secret/dev [:config/file "./secrets/dev-config-secret.txt"]}}
+^{:config/secrets {:secret/dev [:config/file "./secrets/dev.txt"]}}
 {:spotify/api-token-url "https://accounts.spotify.com/api/token"
  :spotify/api-url "https://api.spotify.com"
  :spotify/client-id "my-api-client"
@@ -55,7 +55,7 @@ Second, let confair know about the secret with some metadata:
 ```
 
 (A popular option in prod is to replace `:config/file` with `:config/env` to
-read from an environment variable instead)
+read the secret from an environment variable instead)
 
 Now that confair knows where to find the secret, it's time to fire up the REPL
 to encrypt the client-secret.
@@ -74,7 +74,7 @@ This loads the configuration (including the metadata we need), and uses the
 been updated to look like this:
 
 ```clj
-^{:config/secrets {:secret/dev [:config/file "./secrets/dev-config-secret.txt"]}}
+^{:config/secrets {:secret/dev [:config/file "./secrets/dev.txt"]}}
 {:spotify/api-token-url "https://accounts.spotify.com/api/token"
  :spotify/api-url "https://api.spotify.com"
  :spotify/client-id "my-api-client"
@@ -133,41 +133,38 @@ from the logs.
 
 ### Local overrides
 
-Instead of checking in `dev-config.edn`, let's add it to `.gitignore`:
+Have you ever made local configuration changes that you didn't mean to check in?
+And then had to do the dance every time you commited something? And then a few
+days later discovered you at some point checked them in anyway? There's a better
+way.
+
+We'll keep our local config in a file that isn't checked in.
 
 ```sh
-echo "config/dev-config.edn" >> .gitignore
+echo "config/local-config.edn" >> .gitignore
 ```
 
-We'll move the default configuration to a file that we *do* check in, `./config/default-config.edn`:
+We'll give the checked in defaults a better name:
 
-```clj
-{:spotify/api-token-url "https://accounts.spotify.com/api/token"
- :spotify/api-url "https://api.spotify.com"
- :spotify/client-id "my-api-client"
- :spotify/client-secret [:secret/dev "TlBZD.....kc="]}
+```sh
+mv ./config/dev-config.edn ./config/dev-defaults.edn
 ```
 
-And import the defaults from our `./config/dev-config.edn`:
+And create `./config/local-config.edn` which imports the defaults:
 
 ```clj
-^{:config/secrets {:secret/dev [:config/file "./secrets/dev-config-secret.txt"]}
-  :dev-config/import [".config/default-config.edn"]}
+^{:config/secrets {:secret/dev [:config/file "./secrets/dev.txt"]}
+  :config/import ["./config/dev-defaults.edn"]}
 {:spotify/api-url "https://api-test.spotify.com"}
 ```
 
-In this example, the default config options will be imported, but
+In this example, the configuration from `dev-defaults.edn` is imported, and then
 `:spotify/api-url` is overridden.
-
-The `:dev-config/` namespace is slightly odd. This is a hint that you shouldn't
-use imports in production. While imports are useful when developing locally, it
-is always a good idea to have the production configuration explicitly defined in
-a single place.
 
 Add a sample file for new developers for good measure:
 
 ```
-cp config/dev-config.edn config/dev-config.edn.sample
+cp config/local-config.edn config/local-config.edn.sample
 ```
 
 And you are good to go!

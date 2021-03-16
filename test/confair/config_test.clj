@@ -59,8 +59,8 @@
   (with-files tmp-dir ["password.txt" "cancan\n"
                        "main.edn" (str
                                    "^" {:config/secrets {:secret/test [:config/file (str tmp-dir "/password.txt")]}
-                                        :dev-config/import [(str tmp-dir "/base.edn")
-                                                            (str tmp-dir "/overrides.edn")]}
+                                        :config/import [(str tmp-dir "/base.edn")
+                                                        (str tmp-dir "/overrides.edn")]}
                                    {:main? true
                                     :my-ip [:config/env "MY_IP"]})
                        "base.edn" (str
