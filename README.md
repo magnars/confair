@@ -54,9 +54,6 @@ Second, let confair know about the secret with some metadata:
  :spotify/client-secret "3abdc"}
 ```
 
-(A popular option in prod is to replace `:config/file` with `:config/env` to
-read the secret from an environment variable instead)
-
 Now that confair knows where to find the secret, it's time to fire up the REPL
 to encrypt the client-secret.
 
@@ -109,7 +106,11 @@ In the preceding examples, you've seen this:
 
 The `[:config/file ...]` part is a reference to content to be found on disk
 somewhere, which is then loaded by confair. The other option is `[:config/env
-...]` which reads its contents from an environemnt variable.
+...]` which reads its contents from an environment variable.
+
+```clj
+^{:config/secrets {:secret/dev [:config/env "MY_SECRET"]}}
+```
 
 When reading from disk, confair will trim the string, since newlines have a
 tendency to be inserted by various editors.
@@ -373,7 +374,8 @@ edn-files in the `config/prod`-directory, and for all keys encrypted with the
 `:secret/prod` secret, we re-encrypt it with the secret `"foo"`.
 
 In the example, the old secret is read from disk, while the new secret is
-included verbatim. You can mix and match these freely.
+included inline. You can mix and match these freely. Just make sure you don't
+check the secret in. :)
 
 ## License
 
