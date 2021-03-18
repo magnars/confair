@@ -186,10 +186,170 @@ With Leiningen:
 [com.magnars/confair "2021-03-16"]
 ```
 
-## Finally
+## API overview
 
-There's quite a bit more to confair, but this will have to do for now. More docs
-coming later, but feel free to check out the tests for more examples.
+Now that you know the gist of how confair works, here's a slightly terser
+overview of all the available functions.
+
+### `(confair.config/from-file path)`
+
+Loads configuration from a given file.
+
+```clj
+(def config (config/from-file "./config/dev-config.edn"))
+```
+
+Optionally takes overrides:
+
+```clj
+(def config (config/from-file "./config/dev-config.edn"
+                              {:secrets {:secret/dev "foo"}
+                               :refs {[:config/env "MY_IP"] "1.2.3.4"}}))
+```
+
+Note that `config/from-file` supports `:config/import` metadata to load
+configuration from other files. It does not support recursive imports, mainly
+because I think it's a bad idea.
+
+### `(confair.config/from-env env-var)`
+
+Loads configuration from a given env-variable.
+
+```clj
+(def config (config/from-env "MY_CONFIG"))
+```
+
+Like `from-file`, it takes an optional map of overrides. Unlike `from-file`, it
+does not support `:config/import` metadata.
+
+There is also a `confair.config/from-base64-env` available, which base64 decodes
+the string in the environment variable prior to reading it.
+
+### `(confair.config/from-string s source)`
+
+If you're reading your configuration from somewhere other than the file system
+or environment variables, this is the fallback you're looking for.
+
+```clj
+(def config (config/from-string (redis/get "my-app-config") "redis/my-app-config"))
+```
+
+The `source` parameter is used only for information. It is included in
+exceptions, to give you an idea where to look for errors.
+
+Like `from-file`, it takes an optional map of overrides. Unlike `from-file`, it
+does not support `:config/import` metadata.
+
+There is also a `confair.config/from-base64-string` available, which base64
+decodes the string prior to reading it.
+
+### `(confair.config/mask-config config)`
+
+Replaces a configuration map with a `confair.config.MaskedConfig` map-like object,
+that will mask secrets keys when printed.
+
+```clj
+(def config (-> (config/from-env "MY_CONFIG")
+                (config/mask-config))
+(log/info "Starting app with config" config)
+```
+
+Note that `mask-config` will only mask those keys that are encrypted. It gets
+this information from the metadata added by the various `config/from-*`
+functions.
+
+### `(confair.config/verify-required-together config key-bundles)`
+
+This is a little helper function to give nice exceptions when a bunch of keys
+are required together. It's an all-or-nothing kind of deal.
+
+```clj
+(config/verify-required-together config
+  #{#{:datadog/host
+      :datadog/port}
+    #{:positionstack/api-key
+      :positionstack/base-url}})
+```
+
+In this example, you can leave the `:datadog` or `:positionstack` config options
+out, but if you include one, we're going to need both.
+
+This function will either throw an exception or return the config unharmed, so
+that you can use it in a threading.
+
+### `(confair.config/verify-dependent-keys config kv-spec->required-keys)`
+
+This is a little helper function to give nice exceptions when the value of one
+key means other keys are also required.
+
+```clj
+(config/verify-dependent-keys config
+  {{:sms-provider #{:twilio}} #{:twilio/account-id
+                                :twilio/secret}
+   {:sms-provider #{:link-mobility}} #{:link-mobility/url
+                                       :link-mobility/username
+                                       :link-mobility/password}})
+```
+
+In this example, different keys are required depending on if `:sms-provider` is
+`:twilio` or `:link-mobility`.
+
+You can add more clauses to the key, like this:
+
+```clj
+(config/verify-dependent-keys config
+  {{:sms-provider #{:twilio}
+    :send-smses? boolean} #{:twilio/account-id
+                            :twilio/secret}})
+```
+
+In this example, we will only require the `:twilio/account-id` and
+`:twilio/secret` keys if `:sms-provider` is `:twilio` *and* `:send-smses?` is
+truthy.
+
+This function will either throw an exception or return the config unharmed, so
+that you can use it in a threading.
+
+### `(confair.config-admin/conceal-value config secret-key key)`
+
+This will rewrite a config file using `secret-key` to encrypt the value for `key`.
+
+```clj
+(ca/conceal-value (config/from-file "./config/dev-config.edn")
+                  :secret/dev
+                  :spotify/client-secret)
+```
+
+This uses the metadata added by `config/from-file` to locate
+`:spotify/client-secret` on the file system, and uses the `:secret/dev` secret
+to encrypt it.
+
+### `(confair.config-admin/reveal-value config key)`
+
+This will rewrite a config file, decrypting the value for `key`.
+
+```clj
+(ca/conceal-value (config/from-file "./config/dev-config.edn")
+                  :spotify/client-secret)
+```
+
+### `(confair.config-admin/replace-secret {:files :secret-key :old-secret :new-secret})`
+
+This take a set of files, and will re-encrypt all secrets using a new secret.
+
+```clj
+(ca/replace-secret {:files (ca/find-files "./config/prod/" #".edn$")
+                    :secret-key :secret/prod
+                    :old-secret [:config/file "./secrets/prod.txt"]
+                    :new-secret "foo"})
+```
+
+In this case we use the utility function `config.admin/find-files` to find all
+edn-files in the `config/prod`-directory, and for all keys encrypted with the
+`:secret/prod` secret, we re-encrypt it with the secret `"foo"`.
+
+In the example, the old secret is read from disk, while the new secret is
+included verbatim. You can mix and match these freely.
 
 ## License
 
