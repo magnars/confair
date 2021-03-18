@@ -99,6 +99,30 @@ In order to use this config in our app, we read it back in like this:
 
 Note that the secret is decrypted for us.
 
+### Refs
+
+In the preceding examples, you've seen this:
+
+```clj
+^{:config/secrets {:secret/dev [:config/file "./secrets/dev.txt"]}}
+```
+
+The `[:config/file ...]` part is a reference to content to be found on disk
+somewhere, which is then loaded by confair. The other option is `[:config/env
+...]` which reads its contents from an environemnt variable.
+
+When reading from disk, confair will trim the string, since newlines have a
+tendency to be inserted by various editors.
+
+Note that refs can also be used for config values, like so:
+
+```clj
+{:host-ip [:config/env "HOST_IP"]}
+```
+
+This can be useful in prod, where you might not know all configuration options
+statically.
+
 ### Masking
 
 What if you're sending logs to some log aggregation service? Maybe you are
@@ -335,7 +359,7 @@ This will rewrite a config file, decrypting the value for `key`.
 
 ### `(confair.config-admin/replace-secret {:files :secret-key :old-secret :new-secret})`
 
-This take a set of files, and will re-encrypt all secrets using a new secret.
+This takes a set of files, and will re-encrypt all secrets using a new secret.
 
 ```clj
 (ca/replace-secret {:files (ca/find-files "./config/prod/" #".edn$")
