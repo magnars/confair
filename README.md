@@ -271,7 +271,7 @@ decodes the string prior to reading it.
 ### `(confair.config/mask-config config)`
 
 Replaces a configuration map with a `confair.config.MaskedConfig` map-like object,
-that will mask secrets keys when printed.
+that will mask secret keys when printed.
 
 ```clj
 (def config (-> (config/from-env "MY_CONFIG")
