@@ -349,6 +349,10 @@ This uses the metadata added by `config/from-file` to locate
 `:spotify/client-secret` on the file system, and uses the `:secret/dev` secret
 to encrypt it.
 
+If you want to encrypt nested values, you can pass in a `[:path :to :the
+:value]` instead of just a `key`. Confair supports nested values in *maps* and
+*vectors*.
+
 ### `(confair.config-admin/reveal-value config key)`
 
 This will rewrite a config file, decrypting the value for `key`.
@@ -357,6 +361,8 @@ This will rewrite a config file, decrypting the value for `key`.
 (ca/conceal-value (config/from-file "./config/dev-config.edn")
                   :spotify/client-secret)
 ```
+
+If you have nested encrypted values, you can pass in a `[:path :to :the :value]` instead of just a `key`.
 
 ### `(confair.config-admin/replace-secret {:files :secret-key :old-secret :new-secret})`
 

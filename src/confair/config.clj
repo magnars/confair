@@ -38,20 +38,32 @@
 (defn decrypt [encrypted password]
   (nippy/thaw-from-string encrypted {:password [:cached password]}))
 
+(defn- find-encrypted-paths
+  ([form secrets] (find-encrypted-paths form [] secrets))
+  ([form path secrets]
+   (cond
+     (and (vector? form) (get secrets (first form))) [[path (first form)]]
+     (map? form) (mapcat (fn [[k v]]
+                           (find-encrypted-paths v (conj path k) secrets))
+                         form)
+     (vector? form) (mapcat (fn [i v] (find-encrypted-paths v (conj path i) secrets))
+                            (range)
+                            form))))
+
+(defn- decrypt-v [[secret-key encrypted] path secrets]
+  (try (decrypt encrypted (get secrets secret-key))
+       (catch Exception e
+         (throw (ex-info (str "Unable to decrypt config key at " path)
+                         {:path path :val encrypted} e)))))
+
 (defn reveal [config secrets]
-  (let [get-secret #(and (vector? %)
-                         (get secrets (first %)))]
+  (let [encrypted-paths (into {} (find-encrypted-paths config secrets))]
     (with-meta
-      (into {} (for [[k val] config]
-                 [k (if-let [secret (get-secret val)]
-                      (try (decrypt (second val) secret)
-                           (catch Exception e
-                             (throw (ex-info (str "Unable to decrypt config key " k)
-                                             {:k k :val val} e))))
-                      val)]))
-      (assoc (meta config) :config/encrypted-keys
-             (into {} (keep (fn [[k v]] (when (get-secret v) [k (first v)]))
-                            config))))))
+      (reduce (fn [config path]
+                (update-in config path decrypt-v path secrets))
+              config
+              (keys encrypted-paths))
+      (assoc (meta config) :config/encrypted-paths encrypted-paths))))
 
 (defn get-env [k]
   (System/getenv k))
@@ -104,21 +116,22 @@
     :else        [:config/masked-value (mask-str (str v) 0)]))
 
 (defn mask-secrets [config]
-  (let [secret-k? (:config/encrypted-keys (meta config) {})]
-    (into {}
-          (for [[k v] config]
-            [k (cond-> v
-                 (secret-k? k)
-                 (mask-secret))]))))
+  (reduce
+   (fn [config path]
+     (cond-> config
+       (not= (get-in config path ::missing) ::missing)
+       (update-in path mask-secret)))
+   config
+   (keys (:config/encrypted-paths (meta config)))))
 
 (deftype MaskedConfig [^clojure.lang.IPersistentMap config]
   Object
   (toString [_]           (str (mask-secrets config)))
-  (hashCode [_]           (.hashCode [::masked-config config (:config/encrypted-keys (meta config))]))
+  (hashCode [_]           (.hashCode [::masked-config config (:config/encrypted-paths (meta config))]))
   (equals [_ o]           (and (instance? MaskedConfig o)
                                (.equiv config (.config o))
-                               (.equiv (:config/encrypted-keys (meta config))
-                                       (:config/encrypted-keys (meta (.config o))))))
+                               (.equiv (:config/encrypted-paths (meta config))
+                                       (:config/encrypted-paths (meta (.config o))))))
 
   clojure.lang.IMeta
   (meta [_]               (.meta config))

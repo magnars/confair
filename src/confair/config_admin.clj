@@ -3,7 +3,7 @@
             [clojure.string :as str]
             [confair.config :as config]
             [rewrite-clj.zip :as z]
-            [taoensso.nippy :as nippy])
+            [rewrite-clj.zip.base :as bz])
   (:import java.io.File
            java.util.regex.Pattern))
 
@@ -21,63 +21,76 @@
        (map (fn [^File file] (.getPath file)))
        (filter #(re-find regexp %))))
 
-(defn replace-map-value-in-edn-file [path k v]
-  (let [root (z/of-file path)
-        has-meta-data? (= :meta (:tag (first root)))]
-    (-> root
-        (z/down)
-        (cond-> has-meta-data? (-> (z/right)
-                                   (z/down)))
-        (z/find-value k)
-        (z/right)
-        (z/replace v)
-        (z/root-string)
-        (->> (spit path)))))
+(defn z-meta? [zloc]
+  (= (bz/tag zloc) :meta))
 
-(defn conceal-value [config secret-key key]
-  (let [{:config/keys [key-sources secrets encrypted-keys]} (meta config)]
-    (if-not (and key-sources secrets encrypted-keys)
+(defn z-to-k [zloc k]
+  (cond
+    (z-meta? zloc)
+    (z-to-k (-> zloc z/down z/right) k)
+
+    (z/map? zloc)
+    (-> zloc
+        (z/down)
+        (z/find-value k)
+        (z/right))
+
+    (z/vector? zloc)
+    (if (number? k)
+      (first (drop k (iterate z/right (z/down zloc))))
+      (throw (ex-info (str "Can't traverse into vector with " k) {:zloc zloc :k k})))
+
+    :else (throw (ex-info "Can only traverse into maps and vectors" {:zloc zloc :k k}))))
+
+(defn assoc-in-edn-file [file-path path v]
+  (-> (reduce z-to-k (z/of-file file-path) path)
+      (z/replace v)
+      (z/root-string)
+      (->> (spit file-path))))
+
+(defn conceal-value [config secret-key path]
+  (let [path (if (keyword? path) [path] path)
+        {:config/keys [key-sources secrets encrypted-paths]} (meta config)]
+    (if-not (and key-sources secrets encrypted-paths)
       [:config-is-missing-relevant-meta-info]
-      (if (encrypted-keys key)
-        [:key-already-encrypted key]
+      (if (encrypted-paths path)
+        [:path-already-encrypted path]
         (if-let [secret (secrets secret-key)]
-          (if-let [source (key-sources key)]
+          (if-let [source (key-sources (first path))]
             (if (config/ref? source)
-              [:skipping key :defined-in source]
-              (do (replace-map-value-in-edn-file source key (vector secret-key (config/encrypt (get config key) secret)))
-                  [:concealed key :in source]))
-            [:no-source-found-for key])
+              [:skipping path :defined-in source]
+              (if (get-in config path)
+                (do (assoc-in-edn-file source path (vector secret-key (config/encrypt (get-in config path) secret)))
+                    [:concealed path :in source])
+                [:no-value-at-path path]))
+            [:no-source-found-for path])
           [:no-secret-found-for secret-key])))))
 
-(defn reveal-value [config key]
-  (let [{:config/keys [key-sources secrets encrypted-keys]} (meta config)]
-    (if-not (and key-sources secrets encrypted-keys)
+(defn reveal-value [config path]
+  (let [path (if (keyword? path) [path] path)
+        {:config/keys [key-sources secrets encrypted-paths]} (meta config)]
+    (if-not (and key-sources secrets encrypted-paths)
       [:config-is-missing-relevant-meta-info]
-      (if (encrypted-keys key)
-        (if-let [source (key-sources key)]
-          (do (replace-map-value-in-edn-file source key (get config key))
-              [:revealed key :in source])
-          [:no-source-found-for key])
-        [:key-isnt-encrypted key]))))
+      (if (encrypted-paths path)
+        (if-let [source (key-sources (first path))]
+          (do (assoc-in-edn-file source path (get-in config path))
+              [:revealed path :in source])
+          [:no-source-found-for path])
+        [:path-isnt-encrypted path]))))
 
-(defn replace-secret-in-file [config secret-key old-secret new-secret]
-  (let [{:config/keys [key-sources secrets encrypted-keys from-file]} (meta config)]
-    (if-not (and key-sources secrets encrypted-keys from-file)
+(defn- replace-secret-in-file [config secret-key new-secret]
+  (let [{:config/keys [key-sources secrets encrypted-paths from-file]} (meta config)]
+    (if-not (and key-sources secrets encrypted-paths from-file)
       [[:config-is-missing-relevant-meta-info]]
-      (if-let [relevant-keys (seq (keep (fn [[k s-k]]
-                                          (when (and (= secret-key s-k)
-                                                     (= (key-sources k) from-file))
-                                            k))
-                                        encrypted-keys))]
-        (for [key relevant-keys]
-          (do (replace-map-value-in-edn-file from-file key [secret-key (config/encrypt (get config key) new-secret)])
-              [:replaced-secret key :in from-file]))
+      (if-let [relevant-paths (seq (keep (fn [[path s-k]]
+                                           (when (and (= secret-key s-k)
+                                                      (= (key-sources (first path)) from-file))
+                                             path))
+                                         encrypted-paths))]
+        (for [path relevant-paths]
+          (do (assoc-in-edn-file from-file path [secret-key (config/encrypt (get-in config path) new-secret)])
+              [:replaced-secret path :in from-file]))
         [[:nothing-to-do :in from-file]]))))
-
-(defmacro forcat
-  "`forcat` is to `for` like `mapcat` is to `map`."
-  [& body]
-  `(mapcat identity (for ~@body)))
 
 (defn replace-secret [{:keys [files secret-key old-secret new-secret]} & [overrides]]
   (let [new-secret (config/resolve-ref ::new-secret new-secret nil)
@@ -87,5 +100,4 @@
                     (catch Exception e [:exception-while-loading-config file (.getMessage e)])))]
     (if-let [exceptions (seq (filter vector? configs))]
       exceptions
-      (forcat [config configs]
-        (replace-secret-in-file config secret-key old-secret new-secret)))))
+      (doall (mapcat #(replace-secret-in-file % secret-key new-secret) configs)))))

@@ -1,5 +1,5 @@
 (ns confair.config-test
-  (:require [clojure.java.io :as io]
+  (:require [clojure.pprint]
             [clojure.test :refer [deftest is testing]]
             [confair.config :as sut]
             [test-with-files.tools :refer [with-files]]))
@@ -29,8 +29,21 @@
   (is (= (-> (sut/reveal {:plain-text "foo"
                           :encrypted [:secret/test (sut/encrypt [1 2 3] "my-secret")]}
                          {:secret/test "my-secret"})
-             meta :config/encrypted-keys)
-         {:encrypted :secret/test})))
+             meta :config/encrypted-paths)
+         {[:encrypted] :secret/test}))
+
+  (testing "nested secrets"
+    (is (= (sut/reveal {:plain-text "foo"
+                        :nested {:encrypted [:secret/test (sut/encrypt [1 2 3] "my-secret")]}}
+                       {:secret/test "my-secret"})
+           {:plain-text "foo"
+            :nested {:encrypted [1 2 3]}}))
+
+    (is (= (-> (sut/reveal {:plain-text "foo"
+                            :nested {:encrypted [:secret/test (sut/encrypt [1 2 3] "my-secret")]}}
+                           {:secret/test "my-secret"})
+               meta :config/encrypted-paths)
+           {[:nested :encrypted] :secret/test}))))
 
 (deftest resolve-refs
   (is (= (sut/resolve-refs
@@ -65,7 +78,9 @@
                                     :my-ip [:config/env "MY_IP"]})
                        "base.edn" (str
                                    {:plain-text "base"
-                                    :encrypted [:secret/test (sut/encrypt "this is sparta" "cancan")]})
+                                    :encrypted [:secret/test (sut/encrypt "this is sparta" "cancan")]
+                                    :providers [{:name "Foo" :password [:secret/test (sut/encrypt "foo-pw" "cancan")]}
+                                                {:name "Bar" :password [:secret/test (sut/encrypt "bar-pw" "cancan")]}]})
                        "something.txt" "booyah"
                        "overrides.edn" (str
                                         {:plain-text "override"
@@ -75,6 +90,8 @@
            {:plain-text "override"
             :straight-from-disk "booyah"
             :encrypted "this is sparta"
+            :providers [{:name "Foo" :password "foo-pw"}
+                        {:name "Bar" :password "bar-pw"}]
             :main? true
             :my-ip "1.2.3.5"}))
 
@@ -84,8 +101,11 @@
                                  :straight-from-disk [:config/file (str tmp-dir "/something.txt")]
                                  :my-ip [:config/env "MY_IP"]
                                  :encrypted (str tmp-dir "/base.edn")
+                                 :providers (str tmp-dir "/base.edn")
                                  :main? (str tmp-dir "/main.edn")}
-            :config/encrypted-keys {:encrypted :secret/test}
+            :config/encrypted-paths {[:encrypted] :secret/test
+                                     [:providers 0 :password] :secret/test
+                                     [:providers 1 :password] :secret/test}
             :config/secrets {:secret/test "cancan"}
             :config/from-file (str tmp-dir "/main.edn")}))))
 
@@ -104,9 +124,9 @@
             :encrypted "this is sparta"}))))
 
 (deftest mask-secrets-test
-  (is (= (sut/mask-secrets ^{:config/encrypted-keys {:encrypted-str :secret/test
-                                                     :encrypted-vec :secret/test
-                                                     :encrypted-num :secret/test}}
+  (is (= (sut/mask-secrets ^{:config/encrypted-paths {[:encrypted-str] :secret/test
+                                                      [:encrypted-vec] :secret/test
+                                                      [:encrypted-num] :secret/test}}
                            {:encrypted-str "this is sparta"
                             :encrypted-vec [1 2 3 4]
                             :encrypted-num 1
@@ -123,7 +143,7 @@
   (is (= (sut/mask-secret #inst "2021") [:config/masked-value "Fr*****1"])))
 
 (deftest mask-config-test
-  (let [masked (sut/mask-config ^{:config/encrypted-keys {:encrypted :secret/test}}
+  (let [masked (sut/mask-config ^{:config/encrypted-paths {[:encrypted] :secret/test}}
                                 {:encrypted "this is sparta"
                                  :plain-text "hi"})]
     (is (= (:encrypted masked) "this is sparta"))
@@ -131,7 +151,7 @@
     (is (= (str masked) "{:encrypted [:config/masked-string \"th*****a\"], :plain-text \"hi\"}"))
 
     (testing "hashcode should mirror equiv"
-      (let [same (sut/mask-config ^{:config/encrypted-keys {:encrypted :secret/test}}
+      (let [same (sut/mask-config ^{:config/encrypted-paths {[:encrypted] :secret/test}}
                                   {:encrypted "this is sparta"
                                    :plain-text "hi"})]
 
@@ -143,13 +163,13 @@
         (is (not= masked unmasked))
         (is (not= (hash masked) (hash unmasked))))
 
-      (let [different-secrets (sut/mask-config ^{:config/encrypted-keys {:plain-text :secret/test}}
+      (let [different-secrets (sut/mask-config ^{:config/encrypted-paths {[:plain-text] :secret/test}}
                                                {:encrypted "this is sparta"
                                                 :plain-text "hi"})]
         (is (not= masked different-secrets))
         (is (not= (hash masked) (hash different-secrets))))
 
-      (let [same-w-different-unrelated-meta (sut/mask-config ^{:config/encrypted-keys {:encrypted :secret/test}
+      (let [same-w-different-unrelated-meta (sut/mask-config ^{:config/encrypted-paths {[:encrypted] :secret/test}
                                                                :unrelated-meta? true}
                                                              {:encrypted "this is sparta"
                                                               :plain-text "hi"})]
