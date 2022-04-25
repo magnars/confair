@@ -202,13 +202,13 @@ way, and will never (intentionally) introduce other breaking changes.
 With tools.deps:
 
 ```clj
-com.magnars/confair {:mvn/version "2021-03-16"}
+com.magnars/confair {:mvn/version "2022.04.25"}
 ```
 
 With Leiningen:
 
 ```clj
-[com.magnars/confair "2021-03-16"]
+[com.magnars/confair "2022.04.25"]
 ```
 
 ## API overview
@@ -358,8 +358,8 @@ If you want to encrypt nested values, you can pass in a `[:path :to :the
 This will rewrite a config file, decrypting the value for `key`.
 
 ```clj
-(ca/conceal-value (config/from-file "./config/dev-config.edn")
-                  :spotify/client-secret)
+(ca/reveal-value (config/from-file "./config/dev-config.edn")
+                 :spotify/client-secret)
 ```
 
 If you have nested encrypted values, you can pass in a `[:path :to :the :value]` instead of just a `key`.
@@ -385,7 +385,7 @@ check the secret in. :)
 
 ## License
 
-Copyright © 2021 Magnar Sveen
+Copyright © 2021-2022 Magnar Sveen
 
 Distributed under the Eclipse Public License either version 1.0 or (at your
 option) any later version.
