@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.magnars</groupId>
   <artifactId>confair</artifactId>
-  <version>2022.04.25</version>
+  <version>2024.05.31</version>
   <name>confair</name>
   <dependencies>
     <dependency>
@@ -17,6 +17,12 @@
       <version>0.6.1</version>
     </dependency>
   </dependencies>
+  <licenses>
+    <license>
+      <name>Eclipse Public License 1.0</name>
+      <url>https://www.eclipse.org/legal/epl-v10.html</url>
+    </license>
+  </licenses>
   <build>
     <sourceDirectory>src</sourceDirectory>
   </build>
@@ -26,4 +32,11 @@
       <url>https://repo.clojars.org/</url>
     </repository>
   </repositories>
+  <distributionManagement>
+    <repository>
+      <id>clojars</id>
+      <name>Clojars repository</name>
+      <url>https://clojars.org/repo</url>
+    </repository>
+  </distributionManagement>
 </project>
