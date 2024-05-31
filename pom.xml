@@ -9,7 +9,7 @@
     <dependency>
       <groupId>com.taoensso</groupId>
       <artifactId>nippy</artifactId>
-      <version>3.1.1</version>
+      <version>3.4.2</version>
     </dependency>
     <dependency>
       <groupId>rewrite-clj</groupId>
