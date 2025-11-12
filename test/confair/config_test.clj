@@ -126,14 +126,17 @@
 (deftest mask-secrets-test
   (is (= (sut/mask-secrets ^{:config/encrypted-paths {[:encrypted-str] :secret/test
                                                       [:encrypted-vec] :secret/test
-                                                      [:encrypted-num] :secret/test}}
+                                                      [:encrypted-num] :secret/test}
+                             :config/masked-paths #{[:masked-a-la-carte]}}
                            {:encrypted-str "this is sparta"
                             :encrypted-vec [1 2 3 4]
                             :encrypted-num 1
+                            :masked-a-la-carte "could be an env-var, for instance"
                             :plain-text "override"})
          {:encrypted-str [:config/masked-string "th*****a"]
           :encrypted-vec [:config/masked-vector "[1 ****]"]
           :encrypted-num [:config/masked-number "********"]
+          :masked-a-la-carte [:config/masked-string "co*****e"]
           :plain-text "override"}))
 
   (is (= (sut/mask-secret false)      [:config/masked-boolean "********"]))

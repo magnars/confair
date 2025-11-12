@@ -122,7 +122,9 @@
        (not= (get-in config path ::missing) ::missing)
        (update-in path mask-secret)))
    config
-   (keys (:config/encrypted-paths (meta config)))))
+   (let [m (meta config)]
+     (into (set (:config/masked-paths m))
+           (keys (:config/encrypted-paths m))))))
 
 (deftype MaskedConfig [^clojure.lang.IPersistentMap config]
   Object

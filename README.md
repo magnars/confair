@@ -279,9 +279,17 @@ that will mask secret keys when printed.
 (log/info "Starting app with config" config)
 ```
 
-Note that `mask-config` will only mask those keys that are encrypted. It gets
-this information from the metadata added by the various `config/from-*`
+Note that `mask-config` will by default only mask those keys that are encrypted.
+It gets this information from the metadata added by the various `config/from-*`
 functions.
+
+If you want to encrypt other keys (maybe they are secrets fetched from ENV in
+prod, for instance), you can add it as metadata like so:
+
+```clj
+^{:config/masked-paths #{[:my-secret]}}
+{:my-secret [:config/env "MY_ENV_SECRET"]}
+```
 
 ### `(confair.config/verify-required-together config key-bundles)`
 
