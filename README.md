@@ -202,13 +202,13 @@ way, and will never (intentionally) introduce other breaking changes.
 With tools.deps:
 
 ```clj
-com.magnars/confair {:mvn/version "2024.05.31"}
+com.magnars/confair {:mvn/version "2025.11.12"}
 ```
 
 With Leiningen:
 
 ```clj
-[com.magnars/confair "2024.05.31"]
+[com.magnars/confair "2025.11.12"]
 ```
 
 ## API overview
